@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ollama Model Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .specs-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        input[type="number"], select, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        input[type="number"]:focus, select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .slider-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 2px solid #667eea;
+        }
+
+        .slider-label {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-value {
+            color: #667eea;
+            font-size: 1.3em;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #764ba2;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .model-card {
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .model-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .model-card.excellent {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .model-card.good {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .model-card.poor {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .model-card.impossible {
+            background: #e2e3e5;
+            border-color: #6c757d;
+            opacity: 0.6;
+        }
+
+        .model-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .model-size {
+            color: #666;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+
+        .model-params {
+            color: #666;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+        }
+
+        .performance-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .badge-excellent {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-good {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-poor {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-impossible {
+            background: #6c757d;
+            color: white;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: white;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .info-text {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Ollama Model Checker</h1>
+        <p class="subtitle">Find out which AI models you can run on your hardware</p>
+
+        <div class="specs-section">
+            <div class="input-group">
+                <label for="ram">System RAM (GB)</label>
+                <input type="number" id="ram" min="4" max="256" value="16" step="1">
+            </div>
+
+            <div class="input-group">
+                <label for="vram">GPU VRAM (GB)</label>
+                <input type="number" id="vram" min="0" max="80" value="8" step="1">
+            </div>
+
+            <div class="input-group">
+                <label for="gpu-type">GPU Type</label>
+                <select id="gpu-type">
+                    <option value="nvidia">NVIDIA</option>
+                    <option value="amd">AMD</option>
+                    <option value="cpu">CPU Only</option>
+                    <option value="apple">Apple Silicon</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Context Length</span>
+                <span class="slider-value" id="context-display">4096 tokens</span>
+            </div>
+            <input type="range" id="context-slider" min="2048" max="32768" value="4096" step="1024">
+            <div class="info-text">
+                <strong>Context length</strong> determines how much text the model can process at once. Higher values need more RAM/VRAM.
+            </div>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 30px;">
+            <label for="search">🔍 Search Models</label>
+            <input type="text" id="search" placeholder="Type to filter models (e.g., 'llama', '7b', 'coder')..." style="padding: 15px; font-size: 1.1em;">
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="excellent-count">0</div>
+                <div class="stat-label">Excellent</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="good-count">0</div>
+                <div class="stat-label">Good</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="poor-count">0</div>
+                <div class="stat-label">Poor</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="impossible-count">0</div>
+                <div class="stat-label">Can't Run</div>
+            </div>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        // Real models scraped from Ollama library
+        const models = [
+            // Tiny models (< 2B) - excellent for edge devices
+            { name: 'Llama 3.2 1B', size: 1.3, params: '1B', baseRam: 2 },
+            { name: 'SmolLM2 135M', size: 0.3, params: '135M', baseRam: 1 },
+            { name: 'SmolLM2 360M', size: 0.5, params: '360M', baseRam: 1.5 },
+            { name: 'Qwen 2.5 0.5B', size: 0.5, params: '0.5B', baseRam: 1.5 },
+            { name: 'TinyLlama 1.1B', size: 1.1, params: '1.1B', baseRam: 2 },
+            { name: 'DeepSeek-R1 1.5B', size: 1.5, params: '1.5B', baseRam: 2.5 },
+            
+            // Small models (2-4B) - good for laptops
+            { name: 'Llama 3.2 3B', size: 2.0, params: '3B', baseRam: 3 },
+            { name: 'Gemma 2 2B', size: 2.0, params: '2B', baseRam: 3 },
+            { name: 'Phi-3 Mini 3.8B', size: 2.3, params: '3.8B', baseRam: 3.5 },
+            { name: 'Qwen 2.5 3B', size: 2.0, params: '3B', baseRam: 3 },
+            { name: 'Qwen3 4B', size: 2.5, params: '4B', baseRam: 4 },
+            { name: 'Gemma3 4B', size: 2.5, params: '4B', baseRam: 4 },
+            { name: 'Orca Mini 3B', size: 1.9, params: '3B', baseRam: 3 },
+            
+            // Medium models (7-14B) - mainstream choice
+            { name: 'Llama 3.1 8B', size: 4.7, params: '8B', baseRam: 6 },
+            { name: 'Llama 3 8B', size: 4.7, params: '8B', baseRam: 6 },
+            { name: 'Mistral 7B', size: 4.1, params: '7B', baseRam: 6 },
+            { name: 'Qwen 2.5 7B', size: 4.7, params: '7B', baseRam: 6 },
+            { name: 'Qwen3 8B', size: 4.7, params: '8B', baseRam: 6 },
+            { name: 'Gemma 2 9B', size: 5.5, params: '9B', baseRam: 7 },
+            { name: 'DeepSeek-R1 7B', size: 4.7, params: '7B', baseRam: 6 },
+            { name: 'DeepSeek Coder 6.7B', size: 3.8, params: '6.7B', baseRam: 5 },
+            { name: 'Neural Chat 7B', size: 4.1, params: '7B', baseRam: 6 },
+            { name: 'Starling 7B', size: 4.1, params: '7B', baseRam: 6 },
+            { name: 'CodeLlama 7B', size: 4.1, params: '7B', baseRam: 6 },
+            { name: 'Phi-3 Medium 14B', size: 8.0, params: '14B', baseRam: 10 },
+            { name: 'Phi-4 14B', size: 8.0, params: '14B', baseRam: 10 },
+            { name: 'Qwen 2.5 14B', size: 9.0, params: '14B', baseRam: 12 },
+            { name: 'Qwen3 14B', size: 9.0, params: '14B', baseRam: 12 },
+            { name: 'DeepSeek-R1 14B', size: 9.0, params: '14B', baseRam: 12 },
+            { name: 'Mistral Nemo 12B', size: 7.0, params: '12B', baseRam: 9 },
+            
+            // Large models (20-40B) - powerful systems
+            { name: 'Codestral 22B', size: 13.0, params: '22B', baseRam: 16 },
+            { name: 'Mistral Small 22B', size: 13.0, params: '22B', baseRam: 16 },
+            { name: 'GPT-OSS 20B', size: 12.0, params: '20B', baseRam: 15 },
+            { name: 'Qwen 2.5 32B', size: 20.0, params: '32B', baseRam: 24 },
+            { name: 'Qwen3 32B', size: 20.0, params: '32B', baseRam: 24 },
+            { name: 'DeepSeek-R1 32B', size: 20.0, params: '32B', baseRam: 24 },
+            { name: 'CodeLlama 34B', size: 19.0, params: '34B', baseRam: 22 },
+            { name: 'Command-R 35B', size: 20.0, params: '35B', baseRam: 24 },
+            
+            // Very Large models (70B+) - high-end systems
+            { name: 'Llama 3.1 70B', size: 40.0, params: '70B', baseRam: 48 },
+            { name: 'Llama 3 70B', size: 40.0, params: '70B', baseRam: 48 },
+            { name: 'Llama 3.3 70B', size: 40.0, params: '70B', baseRam: 48 },
+            { name: 'Qwen 2.5 72B', size: 42.0, params: '72B', baseRam: 50 },
+            { name: 'DeepSeek-R1 70B', size: 40.0, params: '70B', baseRam: 48 },
+            { name: 'Vicuna 13B', size: 7.3, params: '13B', baseRam: 10 },
+            { name: 'Mixtral 8x7B', size: 26.0, params: '47B', baseRam: 32 },
+            { name: 'Mixtral 8x22B', size: 80.0, params: '141B', baseRam: 96 },
+            
+            // Massive models (100B+) - datacenter/cloud only
+            { name: 'Command-R Plus 104B', size: 60.0, params: '104B', baseRam: 72 },
+            { name: 'GPT-OSS 120B', size: 70.0, params: '120B', baseRam: 84 },
+            { name: 'Mistral Large 123B', size: 72.0, params: '123B', baseRam: 86 },
+            { name: 'Qwen3 235B', size: 140.0, params: '235B', baseRam: 168 },
+            { name: 'DeepSeek Coder V2 236B', size: 140.0, params: '236B', baseRam: 168 },
+            { name: 'Llama 3.1 405B', size: 231.0, params: '405B', baseRam: 256 },
+            { name: 'DeepSeek-V3 671B', size: 380.0, params: '671B', baseRam: 400 },
+            { name: 'DeepSeek-R1 671B', size: 380.0, params: '671B', baseRam: 400 },
+        ];
+
+        const ramInput = document.getElementById('ram');
+        const vramInput = document.getElementById('vram');
+        const gpuTypeSelect = document.getElementById('gpu-type');
+        const contextSlider = document.getElementById('context-slider');
+        const contextDisplay = document.getElementById('context-display');
+        const searchInput = document.getElementById('search');
+        const resultsDiv = document.getElementById('results');
+
+        function calculateMemoryRequirement(model, contextLength) {
+            const contextMultiplier = contextLength / 4096;
+            return model.baseRam * contextMultiplier;
+        }
+
+        function evaluateModel(model, ram, vram, gpuType, contextLength) {
+            const memoryNeeded = calculateMemoryRequirement(model, contextLength);
+            const totalMemory = gpuType === 'cpu' ? ram : Math.max(vram, ram * 0.5);
+            
+            const memoryRatio = totalMemory / memoryNeeded;
+            
+            if (memoryRatio < 0.8) {
+                return { status: 'impossible', label: 'Cannot Run', description: 'Insufficient memory' };
+            } else if (memoryRatio < 1.2) {
+                return { status: 'poor', label: 'Poor', description: 'Very slow, might crash' };
+            } else if (memoryRatio < 2.0) {
+                return { status: 'good', label: 'Good', description: 'Usable performance' };
+            } else {
+                return { status: 'excellent', label: 'Excellent', description: 'Smooth performance' };
+            }
+        }
+
+        function updateResults() {
+            const ram = parseFloat(ramInput.value);
+            const vram = parseFloat(vramInput.value);
+            const gpuType = gpuTypeSelect.value;
+            const contextLength = parseInt(contextSlider.value);
+            const searchTerm = searchInput.value.toLowerCase();
+
+            contextDisplay.textContent = `${contextLength.toLocaleString()} tokens`;
+
+            const evaluatedModels = models.map(model => ({
+                ...model,
+                evaluation: evaluateModel(model, ram, vram, gpuType, contextLength),
+                memoryNeeded: calculateMemoryRequirement(model, contextLength)
+            }));
+
+            // Filter by search term
+            const filteredModels = evaluatedModels.filter(model => 
+                model.name.toLowerCase().includes(searchTerm) || 
+                model.params.toLowerCase().includes(searchTerm)
+            );
+
+            filteredModels.sort((a, b) => {
+                const statusOrder = { excellent: 0, good: 1, poor: 2, impossible: 3 };
+                return statusOrder[a.evaluation.status] - statusOrder[b.evaluation.status];
+            });
+
+            const stats = filteredModels.reduce((acc, model) => {
+                acc[model.evaluation.status] = (acc[model.evaluation.status] || 0) + 1;
+                return acc;
+            }, {});
+
+            document.getElementById('excellent-count').textContent = stats.excellent || 0;
+            document.getElementById('good-count').textContent = stats.good || 0;
+            document.getElementById('poor-count').textContent = stats.poor || 0;
+            document.getElementById('impossible-count').textContent = stats.impossible || 0;
+
+            if (filteredModels.length === 0) {
+                resultsDiv.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #666; font-size: 1.2em;">No models found matching your search</div>';
+            } else {
+                resultsDiv.innerHTML = filteredModels.map(model => `
+                    <div class="model-card ${model.evaluation.status}">
+                        <div class="model-name">${model.name}</div>
+                        <div class="model-params">${model.params} parameters</div>
+                        <div class="model-size">Memory needed: ~${model.memoryNeeded.toFixed(1)} GB</div>
+                        <div class="performance-badge badge-${model.evaluation.status}">
+                            ${model.evaluation.label}: ${model.evaluation.description}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        ramInput.addEventListener('input', updateResults);
+        vramInput.addEventListener('input', updateResults);
+        gpuTypeSelect.addEventListener('change', updateResults);
+        contextSlider.addEventListener('input', updateResults);
+        searchInput.addEventListener('input', updateResults);
+
+        updateResults();
+    </script>
+</body>
+</html>
